@@ -374,7 +374,7 @@ Resources:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
       ImageId: ami-04770d89e9dedfa8b
-      InstanceType: t2.large
+      InstanceType: t2.small
       IamInstanceProfile:
         Ref: MyClusterDefaultAutoScalingGroupInstanceProfileFA0D4308
       SecurityGroups:
@@ -404,9 +404,9 @@ Resources:
   MyClusterDefaultAutoScalingGroupASG88FB879B:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
-      MaxSize: "2"
+      MaxSize: "3"
       MinSize: "1"
-      DesiredCapacity: "2"
+      DesiredCapacity: "3"
       LaunchConfigurationName:
         Ref: MyClusterDefaultAutoScalingGroupLaunchConfigBC1DAF04
       Tags:
@@ -565,7 +565,7 @@ Resources:
       Tags:
         - Key: Name
           Value: TechShiftModernize/MyCluster/DefaultAutoScalingGroup
-      Timeout: 310
+      Timeout: 70
     DependsOn:
       - MyClusterDefaultAutoScalingGroupDrainECSHookFunctionServiceRoleDefaultPolicy211CB11C
       - MyClusterDefaultAutoScalingGroupDrainECSHookFunctionServiceRole7C6047A2
@@ -628,7 +628,7 @@ Resources:
         Ref: MyClusterDefaultAutoScalingGroupASG88FB879B
       LifecycleTransition: autoscaling:EC2_INSTANCE_TERMINATING
       DefaultResult: CONTINUE
-      HeartbeatTimeout: 300
+      HeartbeatTimeout: 60
       NotificationTargetARN:
         Ref: MyClusterDefaultAutoScalingGroupDrainECSHookTopic97F2832D
       RoleARN:
@@ -640,6 +640,18 @@ Resources:
       - MyClusterDefaultAutoScalingGroupLifecycleHookDrainHookRole6137CEC5
     Metadata:
       aws:cdk:path: TechShiftModernize/MyCluster/DefaultAutoScalingGroup/LifecycleHookDrainHook/Resource
+  MyClusterDefaultAutoScalingGroupScalingPolicyKeepCpuHalfwayLoaded47591E99:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName:
+        Ref: MyClusterDefaultAutoScalingGroupASG88FB879B
+      PolicyType: TargetTrackingScaling
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ASGAverageCPUUtilization
+        TargetValue: 50
+    Metadata:
+      aws:cdk:path: TechShiftModernize/MyCluster/DefaultAutoScalingGroup/ScalingPolicyKeepCpuHalfwayLoaded/Resource
   MySqlTaskDefTaskRole77A5F3FA:
     Type: AWS::IAM::Role
     Properties:
@@ -850,7 +862,7 @@ Resources:
             - Name: WORDPRESS_DB_PASSWORD
               Value: password
           Essential: true
-          Image: wordpress:4.6
+          Image: wordpress:4.8
           Links:
             []
           LinuxParameters:

@@ -47,10 +47,20 @@ export class TechshiftModernize extends cdk.Stack {
     });
 
     // Add EC2 capacity to cluster
-    cluster.addDefaultAutoScalingGroupCapacity({
-      instanceType: new ec2.InstanceType('t2.large'),
-      instanceCount: 2
-    });    
+    const autoScalingGroup = cluster.addDefaultAutoScalingGroupCapacity({
+      instanceType: new ec2.InstanceType('t2.small'),
+      instanceCount: 3, // Scale this up
+      // Give instances 5 minutes to drain running tasks when an instance is
+      // terminated. This is the default, turn this off by specifying 0 or
+      // change the timeout up to 900 seconds.
+      taskDrainTimeSeconds: 60,  
+    });   
+
+    // TODO: Look at scaling out to track a custom metric such as when deploying
+    
+    autoScalingGroup.scaleOnCpuUtilization('KeepCpuHalfwayLoaded', {
+      targetUtilizationPercent: 50
+    });
 
     const mysqlTaskDefinition = new ecs.FargateTaskDefinition(this, 'MySqlTaskDef', {
       family: 'MySqlTask',
@@ -110,7 +120,7 @@ export class TechshiftModernize extends cdk.Stack {
     });
 
     const wordpressContainer = wordpressTaskDefinition.addContainer("Wordpress", {
-      image: ecs.ContainerImage.fromDockerHub("wordpress:4.6"),
+      image: ecs.ContainerImage.fromDockerHub("wordpress:4.8"),
       memoryLimitMiB: 512, // Hard limit
       cpu: 256,
       essential: true,
@@ -133,7 +143,7 @@ export class TechshiftModernize extends cdk.Stack {
       cluster,
       serviceName: "Wordpress",
       taskDefinition: wordpressTaskDefinition,
-      desiredCount: 2,
+      desiredCount: 2, 
     });
 
     // Configure specific connection for this security group

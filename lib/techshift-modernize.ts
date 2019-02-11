@@ -1,4 +1,5 @@
 import cdk = require('@aws-cdk/cdk');
+import iam = require('@aws-cdk/aws-iam')
 import logs = require('@aws-cdk/aws-logs');
 import ec2 = require('@aws-cdk/aws-ec2');
 import ecs = require('@aws-cdk/aws-ecs');
@@ -18,24 +19,17 @@ export class TechshiftModernize extends cdk.Stack {
     const vpc = new ec2.VpcNetwork(this, 'MyVpc', {
       maxAZs: 2,
       cidr: "10.1.0.0/16",
-      // subnetConfiguration: [
-      //   {
-      //     cidrMask: 24,
-      //     name: "MyPublicSubnet",
-      //     subnetType: ec2.SubnetType.Public
-      //   },
-      // ],
     });
 
     // Manually add service discovery
     // see: https://github.com/awslabs/aws-cdk/issues/1554
 
     const ns = new dis.CfnPrivateDnsNamespace(this, 'MyCfnDns', {
-      name: "ckd-ecslab",
+      name: "cdk-ecslab",
       vpc: vpc.vpcId,
     })
     const discovery = new dis.CfnService(this, 'MyCfnService', {
-      name: 'ckd-mysql-service',
+      name: 'cdk-mysql-service',
       dnsConfig: {
         dnsRecords: [ {
           type: "A",
@@ -52,14 +46,22 @@ export class TechshiftModernize extends cdk.Stack {
       vpc: vpc
     });
 
+    // Add EC2 capacity to cluster
+    cluster.addDefaultAutoScalingGroupCapacity({
+      instanceType: new ec2.InstanceType('t2.micro'),
+      instanceCount: 2
+    });    
+
     const mysqlTaskDefinition = new ecs.FargateTaskDefinition(this, 'MySqlTaskDef', {
       family: 'MySqlTask',
       memoryMiB: '512',
-      cpu: '256',
+      cpu: '256'
     });
 
     const mysqlContainer = mysqlTaskDefinition.addContainer("MySql", {
       image: ecs.ContainerImage.fromDockerHub("mysql:5.7"),
+      memoryLimitMiB: 512, // Hard limit
+      cpu: 256,
       essential: true,
       environment: { 
         'MYSQL_ROOT_PASSWORD': 'password' 
@@ -80,9 +82,6 @@ export class TechshiftModernize extends cdk.Stack {
       serviceName: "MySql",
       taskDefinition: mysqlTaskDefinition,
       desiredCount: 1,
-      // vpcPlacement: {
-      //   subnetsToUse: ec2.SubnetType.Public
-      // }
     });
     
     // Allow all MySQL traffic
@@ -97,22 +96,32 @@ export class TechshiftModernize extends cdk.Stack {
     // TODO: Code deploy is support in CFN or CDK yet, need custom resource to update serivce
     // see: https://github.com/awslabs/aws-cdk/issues/1559
 
-    const wordpressTaskDefinition = new ecs.FargateTaskDefinition(this, 'WordpressTaskDef', {
+    const wordpressExecutionRole = new iam.Role(this, 'WordpressTaskDefExecutionRole', {
+      roleName: "WordpressTaskDefExecutionRole",
+      assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
+    });
+    wordpressExecutionRole.attachManagedPolicy('arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy')
+
+    const wordpressTaskDefinition = new ecs.Ec2TaskDefinition(this, 'WordpressTaskDef', {
       family: 'WordpressTask',
-      memoryMiB: '512',
-      cpu: '256',
+      executionRole: wordpressExecutionRole,
+      //memoryMiB: '512',
+      //cpu: '256',
     });
 
     const wordpressContainer = wordpressTaskDefinition.addContainer("Wordpress", {
       image: ecs.ContainerImage.fromDockerHub("wordpress:4.6"),
+      memoryLimitMiB: 512, // Hard limit
+      cpu: 256,
+      essential: true,
       environment: { 
-        'WORDPRESS_DB_HOST': 'cdk-mysql-service.cdk-ecslab',
+        'WORDPRESS_DB_HOST': discovery.node + '.' + ns.node,
         'WORDPRESS_DB_PASSWORD': 'password'
       },
       logging: new ecs.AwsLogDriver(this, 'WordpressLogs', { 
         logGroup: logGroup,
         streamPrefix: 'wordpress' 
-      })
+      }),
     });
 
     wordpressContainer.addPortMappings({
@@ -125,7 +134,7 @@ export class TechshiftModernize extends cdk.Stack {
     //   targetUtilizationPercent: 50
     // });
 
-    const wordpressService = new ecs.FargateService(this, 'WordpressService', {
+    const wordpressService = new ecs.Ec2Service(this, 'WordpressService', { 
       cluster,
       serviceName: "Wordpress",
       taskDefinition: wordpressTaskDefinition,

@@ -48,7 +48,7 @@ export class TechshiftModernize extends cdk.Stack {
 
     // Add EC2 capacity to cluster
     cluster.addDefaultAutoScalingGroupCapacity({
-      instanceType: new ec2.InstanceType('t2.micro'),
+      instanceType: new ec2.InstanceType('t2.large'),
       instanceCount: 2
     });    
 
@@ -115,7 +115,7 @@ export class TechshiftModernize extends cdk.Stack {
       cpu: 256,
       essential: true,
       environment: { 
-        'WORDPRESS_DB_HOST': discovery.node + '.' + ns.node,
+        'WORDPRESS_DB_HOST': 'cdk-mysql-service.cdk-ecslab',
         'WORDPRESS_DB_PASSWORD': 'password'
       },
       logging: new ecs.AwsLogDriver(this, 'WordpressLogs', { 
@@ -129,19 +129,11 @@ export class TechshiftModernize extends cdk.Stack {
       containerPort: 80,
     })
 
-    // const scaling = service.autoScaleTaskCount({ maxCapacity: 10 });
-    // scaling.scaleOnCpuUtilization('CpuScaling', {
-    //   targetUtilizationPercent: 50
-    // });
-
     const wordpressService = new ecs.Ec2Service(this, 'WordpressService', { 
       cluster,
       serviceName: "Wordpress",
       taskDefinition: wordpressTaskDefinition,
       desiredCount: 2,
-      // vpcPlacement: {
-      //   subnetsToUse: ec2.SubnetType.Public
-      // }
     });
 
     // Configure specific connection for this security group
@@ -150,12 +142,19 @@ export class TechshiftModernize extends cdk.Stack {
 
     const lb = new elbv2.ApplicationLoadBalancer(this, 'LB', { 
       vpc,
-      internetFacing: true 
+      internetFacing: true
     });
     const listener = lb.addListener('Listener', { port: 80 });
     const target = listener.addTargets('ECS', {
       port: 80,
-      targets: [wordpressService]
+      targets: [wordpressService],
+      healthCheck: {
+        intervalSecs: 30,
+        timeoutSeconds: 5,
+        healthyThresholdCount: 5,
+        unhealthyThresholdCount: 2,
+        healthyHttpCodes: "200,302" // Allow for 302
+      }
     });
 
     new cloudwatch.Alarm(this, 'TargetGroup5xx', {

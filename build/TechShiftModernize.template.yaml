@@ -374,7 +374,7 @@ Resources:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
       ImageId: ami-04770d89e9dedfa8b
-      InstanceType: t2.micro
+      InstanceType: t2.large
       IamInstanceProfile:
         Ref: MyClusterDefaultAutoScalingGroupInstanceProfileFA0D4308
       SecurityGroups:
@@ -846,7 +846,7 @@ Resources:
         - Cpu: 256
           Environment:
             - Name: WORDPRESS_DB_HOST
-              Value: "[object Object].[object Object]"
+              Value: cdk-mysql-service.cdk-ecslab
             - Name: WORDPRESS_DB_PASSWORD
               Value: password
           Essential: true
@@ -1004,11 +1004,17 @@ Resources:
       Protocol: HTTP
       VpcId:
         Ref: MyVpcF9F0CA6F
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 5
+      Matcher:
+        HttpCode: 200,302
       TargetGroupAttributes:
         []
       Targets:
         []
       TargetType: instance
+      UnhealthyThresholdCount: 2
     Metadata:
       aws:cdk:path: TechShiftModernize/LB/Listener/ECSGroup/Resource
   TargetGroup5xx43EFCD6E:

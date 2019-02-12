@@ -49,7 +49,8 @@ export class TechshiftModernize extends cdk.Stack {
     // Add EC2 capacity to cluster
     const autoScalingGroup = cluster.addDefaultAutoScalingGroupCapacity({
       instanceType: new ec2.InstanceType('t2.small'),
-      instanceCount: 3, // Scale this up
+      instanceCount: 2,
+      maxCapacity: 4,
       // Give instances 5 minutes to drain running tasks when an instance is
       // terminated. This is the default, turn this off by specifying 0 or
       // change the timeout up to 900 seconds.
@@ -120,7 +121,7 @@ export class TechshiftModernize extends cdk.Stack {
     });
 
     const wordpressContainer = wordpressTaskDefinition.addContainer("Wordpress", {
-      image: ecs.ContainerImage.fromDockerHub("wordpress:4.8"),
+      image: ecs.ContainerImage.fromDockerHub("wordpress:4.9"),
       memoryLimitMiB: 512, // Hard limit
       cpu: 256,
       essential: true,
@@ -135,7 +136,7 @@ export class TechshiftModernize extends cdk.Stack {
     });
 
     wordpressContainer.addPortMappings({
-      hostPort: 80,
+      hostPort: 0, // Use dynamic port
       containerPort: 80,
     })
 
@@ -144,6 +145,8 @@ export class TechshiftModernize extends cdk.Stack {
       serviceName: "Wordpress",
       taskDefinition: wordpressTaskDefinition,
       desiredCount: 2, 
+      minimumHealthyPercent: 0, // Allow killing one instance to roll in
+      maximumPercent: 200 // Allow twice
     });
 
     // Configure specific connection for this security group
@@ -159,11 +162,12 @@ export class TechshiftModernize extends cdk.Stack {
       port: 80,
       targets: [wordpressService],
       healthCheck: {
+        port: 'traffic-port', // Use traffic port since we have dynamic host
         intervalSecs: 30,
         timeoutSeconds: 5,
         healthyThresholdCount: 5,
         unhealthyThresholdCount: 2,
-        healthyHttpCodes: "200,302" // Allow for 302
+        healthyHttpCodes: "200,301,302" // Allow for redirects
       }
     });
 

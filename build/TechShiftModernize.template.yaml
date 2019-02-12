@@ -25,7 +25,7 @@ Resources:
       CidrBlock: 10.1.0.0/18
       VpcId:
         Ref: MyVpcF9F0CA6F
-      AvailabilityZone: ap-southeast-1a
+      AvailabilityZone: us-east-1a
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
@@ -93,7 +93,7 @@ Resources:
       CidrBlock: 10.1.64.0/18
       VpcId:
         Ref: MyVpcF9F0CA6F
-      AvailabilityZone: ap-southeast-1b
+      AvailabilityZone: us-east-1b
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
@@ -161,7 +161,7 @@ Resources:
       CidrBlock: 10.1.128.0/18
       VpcId:
         Ref: MyVpcF9F0CA6F
-      AvailabilityZone: ap-southeast-1a
+      AvailabilityZone: us-east-1a
       MapPublicIpOnLaunch: false
       Tags:
         - Key: Name
@@ -207,7 +207,7 @@ Resources:
       CidrBlock: 10.1.192.0/18
       VpcId:
         Ref: MyVpcF9F0CA6F
-      AvailabilityZone: ap-southeast-1b
+      AvailabilityZone: us-east-1b
       MapPublicIpOnLaunch: false
       Tags:
         - Key: Name
@@ -309,12 +309,12 @@ Resources:
         Ref: MyVpcF9F0CA6F
     Metadata:
       aws:cdk:path: TechShiftModernize/MyCluster/DefaultAutoScalingGroup/InstanceSecurityGroup/Resource
-  MyClusterDefaultAutoScalingGroupInstanceSecurityGroupfromTechShiftModernizeLBSecurityGroupFDA228B38096FF3CEB:
+  MyClusterDefaultAutoScalingGroupInstanceSecurityGroupfromTechShiftModernizeLBSecurityGroupFDA228B33276865535EAF626AB:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       IpProtocol: tcp
       Description: Load balancer to target
-      FromPort: 80
+      FromPort: 32768
       GroupId:
         Fn::GetAtt:
           - MyClusterDefaultAutoScalingGroupInstanceSecurityGroup5DFF182A
@@ -323,10 +323,10 @@ Resources:
         Fn::GetAtt:
           - LBSecurityGroup8A41EA2B
           - GroupId
-      ToPort: 80
+      ToPort: 65535
     Metadata:
       aws:cdk:path: TechShiftModernize/MyCluster/DefaultAutoScalingGroup/InstanceSecurityGroup/from
-        TechShiftModernizeLBSecurityGroupFDA228B3:80
+        TechShiftModernizeLBSecurityGroupFDA228B3:32768-65535
   MyClusterDefaultAutoScalingGroupInstanceRole2724F473:
     Type: AWS::IAM::Role
     Properties:
@@ -373,7 +373,7 @@ Resources:
   MyClusterDefaultAutoScalingGroupLaunchConfigBC1DAF04:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
-      ImageId: ami-04770d89e9dedfa8b
+      ImageId: ami-0bf2fb355727b7faf
       InstanceType: t2.small
       IamInstanceProfile:
         Ref: MyClusterDefaultAutoScalingGroupInstanceProfileFA0D4308
@@ -404,9 +404,9 @@ Resources:
   MyClusterDefaultAutoScalingGroupASG88FB879B:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
-      MaxSize: "3"
+      MaxSize: "4"
       MinSize: "1"
-      DesiredCapacity: "3"
+      DesiredCapacity: "2"
       LaunchConfigurationName:
         Ref: MyClusterDefaultAutoScalingGroupLaunchConfigBC1DAF04
       Tags:
@@ -862,7 +862,7 @@ Resources:
             - Name: WORDPRESS_DB_PASSWORD
               Value: password
           Essential: true
-          Image: wordpress:4.8
+          Image: wordpress:4.9
           Links:
             []
           LinuxParameters:
@@ -889,7 +889,7 @@ Resources:
           Name: Wordpress
           PortMappings:
             - ContainerPort: 80
-              HostPort: 80
+              HostPort: 0
               Protocol: tcp
           Ulimits:
             []
@@ -922,7 +922,7 @@ Resources:
         Ref: MyCluster4C1BA579
       DeploymentConfiguration:
         MaximumPercent: 200
-        MinimumHealthyPercent: 50
+        MinimumHealthyPercent: 0
       DesiredCount: 2
       LaunchType: EC2
       LoadBalancers:
@@ -976,7 +976,7 @@ Resources:
         Ref: MyVpcF9F0CA6F
     Metadata:
       aws:cdk:path: TechShiftModernize/LB/SecurityGroup/Resource
-  LBSecurityGrouptoTechShiftModernizeMyClusterDefaultAutoScalingGroupInstanceSecurityGroup9C164DE8806278ECD8:
+  LBSecurityGrouptoTechShiftModernizeMyClusterDefaultAutoScalingGroupInstanceSecurityGroup9C164DE83276865535DE052AC8:
     Type: AWS::EC2::SecurityGroupEgress
     Properties:
       GroupId:
@@ -989,11 +989,11 @@ Resources:
         Fn::GetAtt:
           - MyClusterDefaultAutoScalingGroupInstanceSecurityGroup5DFF182A
           - GroupId
-      FromPort: 80
-      ToPort: 80
+      FromPort: 32768
+      ToPort: 65535
     Metadata:
       aws:cdk:path: TechShiftModernize/LB/SecurityGroup/to
-        TechShiftModernizeMyClusterDefaultAutoScalingGroupInstanceSecurityGroup9C164DE8:80
+        TechShiftModernizeMyClusterDefaultAutoScalingGroupInstanceSecurityGroup9C164DE8:32768-65535
   LBListener49E825B4:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
@@ -1017,10 +1017,11 @@ Resources:
       VpcId:
         Ref: MyVpcF9F0CA6F
       HealthCheckIntervalSeconds: 30
+      HealthCheckPort: traffic-port
       HealthCheckTimeoutSeconds: 5
       HealthyThresholdCount: 5
       Matcher:
-        HttpCode: 200,302
+        HttpCode: 200,301,302
       TargetGroupAttributes:
         []
       Targets:

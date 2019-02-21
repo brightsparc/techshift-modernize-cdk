@@ -373,7 +373,7 @@ Resources:
   MyClusterDefaultAutoScalingGroupLaunchConfigBC1DAF04:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
-      ImageId: ami-0bf2fb355727b7faf
+      ImageId: ami-0796380bc6e51157f
       InstanceType: t2.small
       IamInstanceProfile:
         Ref: MyClusterDefaultAutoScalingGroupInstanceProfileFA0D4308
